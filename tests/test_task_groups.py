@@ -171,3 +171,10 @@ class TestExpandTaskGroupsWithTemplates:
     def test_global_piqa_completions_expands_to_32_tasks(self):
         results = _expand_task_groups(["global-piqa-eu-completions"])
         assert len(results) == 32
+
+
+def test_judgearena_group_expands_to_judgearena_suite():
+    results = _expand_task_groups(["judgearena-alpaca"])
+    suites = {r.suite for r in results}
+    assert suites == {"judgearena"}
+    assert any(r.task == "alpaca-eval" for r in results)

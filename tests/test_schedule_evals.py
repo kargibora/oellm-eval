@@ -111,6 +111,28 @@ def test_schedule_evals_no_nodelist(tmp_path):
     assert "--nodelist" not in sbatch_content
 
 
+def test_generated_sbatch_has_judgearena_case(tmp_path):
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch.dict(os.environ, {"EVAL_OUTPUT_DIR": str(tmp_path)}),
+    ):
+        schedule_evals(
+            models="EleutherAI/pythia-70m",
+            task_groups="judgearena-alpaca",
+            n_shot=0,
+            skip_checks=True,
+            venv_path=str(Path(sys.prefix)),
+            dry_run=True,
+        )
+    script = next(tmp_path.rglob("submit_evals.sbatch")).read_text()
+    assert "judgearena)" in script
+    assert '"$JUDGEARENA_VENV/bin/judgearena"' in script
+    assert '--config_path "$JUDGEARENA_CONFIG"' in script
+    assert '--task "$task_path"' in script
+    assert '--model.name "VLLM/$model_path"' in script
+
+
 def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):
     """Verify invalid slurm_template_var raises ValueError."""
     with (

@@ -806,6 +806,14 @@ task_groups:
       - task: "polymath_{lang}_top"
         subset: "{lang}"
 
+  judgearena-alpaca:
+    suite: judgearena
+    description: "JudgeArena alpaca-eval win-rate vs gpt4_1106_preview, local vLLM judge (judge is TP=4; schedule with GPUS_PER_NODE=4)."
+    n_shots: [0]
+    tasks:
+      - task: alpaca-eval
+        suite: judgearena
+
 super_groups:
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"
