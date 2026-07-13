@@ -684,6 +684,22 @@ def collect_results(
         with open(json_file) as f:
             data = json.load(f)
 
+        if data.get("report_type") == "BattleReport" and "winrate" in data:
+            model_name = data.get("model_A", "unknown")
+            task_name = data.get("task", "unknown")
+            if check:
+                completed_jobs.add((model_name, task_name, 0))
+            rows.append(
+                {
+                    "model_name": model_name,
+                    "task": task_name,
+                    "n_shot": 0,
+                    "performance": data["winrate"],
+                    "metric_name": "winrate",
+                }
+            )
+            continue
+
         # Extract model name/path from a few common locations used in different
         # versions of the result JSON schema.
         model_name = (
