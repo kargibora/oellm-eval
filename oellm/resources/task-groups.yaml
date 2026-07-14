@@ -813,6 +813,17 @@ task_groups:
     tasks:
       - task: alpaca-eval
         suite: judgearena
+  judgearena-suite:
+    suite: judgearena
+    description: "JudgeArena generate+judge benchmarks (alpaca-eval, arena-hard-v2.0, mt-bench), local vLLM judge (TP=4; schedule with GPUS_PER_NODE=4). Each task uses its native baseline."
+    n_shots: [0]
+    tasks:
+      - task: alpaca-eval
+        suite: judgearena
+      - task: arena-hard-v2.0
+        suite: judgearena
+      - task: mt-bench
+        suite: judgearena
 
 super_groups:
   oellm-multilingual:

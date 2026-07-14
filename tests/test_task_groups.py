@@ -178,3 +178,9 @@ def test_judgearena_group_expands_to_judgearena_suite():
     suites = {r.suite for r in results}
     assert suites == {"judgearena"}
     assert any(r.task == "alpaca-eval" for r in results)
+
+
+def test_judgearena_suite_group_expands_all_tasks():
+    results = _expand_task_groups(["judgearena-suite"])
+    assert {r.suite for r in results} == {"judgearena"}
+    assert {r.task for r in results} == {"alpaca-eval", "arena-hard-v2.0", "mt-bench"}
