@@ -42,13 +42,6 @@ lumi:
   QUEUE_LIMIT: 210
   EVAL_CONTAINER_IMAGE: "eval_env-lumi.sif"
   SINGULARITY_ARGS: "--rocm"
-  # JudgeArena reuses the base vLLM SIF + an overlay venv with the editable
-  # judgearena install (no baked image). CONTAINER_IMAGE is an absolute path here
-  # (unlike EVAL_CONTAINER_IMAGE, a basename under EVAL_BASE_DIR).
-  JUDGEARENA_CONTAINER_IMAGE: "/scratch/project_465002530/containers/vllm-openai-rocm.sif"
-  JUDGEARENA_VENV: "/flash/project_465002530/users/kargibora/venvs/judgearena-container"
-  JUDGEARENA_EXTRA_BINDS: "/pfs,/projappl,/flash"   # venv (/flash) + editable repo (/projappl)
-  JUDGEARENA_SINGULARITY_ARGS: ""   # NO --rocm (glibc conflict with vLLM)
 
 snellius:
   hostname_pattern: "*.snellius.surf.nl"

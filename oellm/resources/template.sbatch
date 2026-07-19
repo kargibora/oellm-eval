@@ -217,21 +217,17 @@ do
         judgearena)
             RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
             mkdir -p "$RESULTS_SUBDIR"
-            JA_SIF="$JUDGEARENA_CONTAINER_IMAGE"
-            echo "----------------------------------------------------"
-            echo "judgearena Execution (image: $JA_SIF, venv: $JUDGEARENA_VENV)"
-            singularity exec $JUDGEARENA_SINGULARITY_ARGS \
+            singularity exec $SINGULARITY_ARGS \
                 $SINGULARITY_ENV_ARGS \
                 $SINGULARITY_HOME_ARG \
-                --bind "$BIND_PATHS${{JUDGEARENA_EXTRA_BINDS:+,$JUDGEARENA_EXTRA_BINDS}}" \
-                "$JA_SIF" \
+                --bind $BIND_PATHS \
+                $EVAL_SIF_PATH \
                 env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
-                "$JUDGEARENA_VENV/bin/judgearena" --config_path "$JUDGEARENA_CONFIG" \
+                judgearena --config_path "{judgearena_config}" \
                     --task "$task_path" \
                     --model.name "VLLM/$model_path" \
                     --run.result_folder "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--generation.n_instructions $LIMIT}}
-            echo "----------------------------------------------------"
             ;;
         *)
             echo "[warning] Unknown evaluation suite '$eval_suite'. Skipping."

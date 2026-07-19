@@ -122,13 +122,13 @@ def test_generated_sbatch_has_judgearena_case(tmp_path):
             task_groups="judgearena-alpaca",
             n_shot=0,
             skip_checks=True,
-            venv_path=str(Path(sys.prefix)),
             dry_run=True,
         )
     script = next(tmp_path.rglob("submit_evals.sbatch")).read_text()
     assert "judgearena)" in script
-    assert '"$JUDGEARENA_VENV/bin/judgearena"' in script
-    assert '--config_path "$JUDGEARENA_CONFIG"' in script
+    assert "singularity exec" in script
+    assert "$EVAL_SIF_PATH" in script
+    assert 'judgearena --config_path "' in script
     assert '--task "$task_path"' in script
     assert '--model.name "VLLM/$model_path"' in script
 

@@ -808,14 +808,14 @@ task_groups:
 
   judgearena-alpaca:
     suite: judgearena
-    description: "JudgeArena alpaca-eval win-rate vs gpt4_1106_preview, local vLLM judge (judge is TP=4; schedule with GPUS_PER_NODE=4)."
+    description: "JudgeArena alpaca-eval win-rate vs gpt4_1106_preview, local vLLM judge. Runs inside EVAL_CONTAINER_IMAGE (needs a JudgeArena image; see docs/CONTAINERS.md)."
     n_shots: [0]
     tasks:
       - task: alpaca-eval
         suite: judgearena
   judgearena-suite:
     suite: judgearena
-    description: "JudgeArena generate+judge benchmarks (alpaca-eval, arena-hard-v2.0, mt-bench), local vLLM judge (TP=4; schedule with GPUS_PER_NODE=4). Each task uses its native baseline."
+    description: "JudgeArena generate+judge benchmarks (alpaca-eval, arena-hard-v2.0, mt-bench), local vLLM judge. Each task uses its native baseline. Runs inside EVAL_CONTAINER_IMAGE (needs a JudgeArena image; see docs/CONTAINERS.md)."
     n_shots: [0]
     tasks:
       - task: alpaca-eval

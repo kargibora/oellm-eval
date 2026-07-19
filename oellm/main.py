@@ -453,6 +453,7 @@ def schedule_evals(
         hf_hub_offline=_resolve_hf_hub_offline(local),
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
+        judgearena_config=os.environ.get("JUDGEARENA_CONFIG", ""),
     )
 
     if not os.environ.get("ACCOUNT"):
