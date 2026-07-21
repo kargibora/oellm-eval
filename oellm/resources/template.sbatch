@@ -220,7 +220,7 @@ do
             singularity exec $SINGULARITY_ARGS \
                 $SINGULARITY_ENV_ARGS \
                 $SINGULARITY_HOME_ARG \
-                --bind $BIND_PATHS \
+                --bind "$BIND_PATHS${{JUDGEARENA_EXTRA_BINDS:+,$JUDGEARENA_EXTRA_BINDS}}" \
                 $EVAL_SIF_PATH \
                 env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
                 judgearena --config_path "{judgearena_config}" \

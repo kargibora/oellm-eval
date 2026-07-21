@@ -71,6 +71,16 @@ generation:
 
 `collect` reads the resulting `BattleReport` JSON and records the win-rate per task.
 
+### Binding the config and data
+
+The container binds `EVAL_BASE_DIR`, `HF_HOME`, and `HF_DATASETS_CACHE`, so the judge config (`JUDGEARENA_CONFIG`) and JudgeArena's data dir (`JUDGEARENA_DATA`, holding the prefetched task datasets) must live under one of those — the simplest is to put them under `EVAL_BASE_DIR`. To keep them elsewhere, set `JUDGEARENA_EXTRA_BINDS` to a comma-separated list of extra host paths to mount, e.g.:
+
+```bash
+export JUDGEARENA_EXTRA_BINDS=/scratch/<proj>/users/<you>
+export JUDGEARENA_DATA=/scratch/<proj>/users/<you>/openjury-eval-data
+export JUDGEARENA_CONFIG=/projappl/<proj>/<you>/judge.yaml
+```
+
 ### Building a JudgeArena image
 
 Bake JudgeArena on top of the cluster's vLLM base image:
