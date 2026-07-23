@@ -40,16 +40,3 @@ Images are compressed with zstd (level 3) via mksquashfs for a good balance of s
    ```
 
 4. Push to `main` to trigger the build.
-
-## JudgeArena
-
-The `judgearena-suite` and `judgearena-elo` task groups run [JudgeArena](https://github.com/OpenEuroLLM/JudgeArena) **inside `EVAL_CONTAINER_IMAGE`**, so that image must have JudgeArena installed alongside vLLM. Each task name *is* a JudgeArena config (a bundled name like `alpaca-eval`, or a path to your own YAML), which carries the task and judge — so just point `EVAL_CONTAINER_IMAGE` at a JudgeArena image:
-
-```bash
-export EVAL_CONTAINER_IMAGE=/path/to/judgearena-<cluster>.sif
-oellm-eval schedule --models VLLM/<model> --task_groups judgearena-suite
-```
-
-`oellm-eval` injects `--model.name` and `--run.result_folder`; the config supplies the rest. `collect` records the win-rate (`judgearena-suite`) or ELO rating (`judgearena-elo`) per model. If a custom config or prefetched data live outside the bound dirs (`EVAL_BASE_DIR`, `HF_HOME`, `HF_DATASETS_CACHE`), add them via `JUDGEARENA_EXTRA_BINDS`.
-
-Building the JudgeArena image and writing judge configs are covered in JudgeArena's [`docs/CONTAINER.md`](https://github.com/OpenEuroLLM/JudgeArena/blob/main/docs/CONTAINER.md).

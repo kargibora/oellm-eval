@@ -49,11 +49,24 @@ oellm-eval schedule --models "model-name" --task_groups "my-benchmark"
 | Field | Required | Level | Description |
 |-------|----------|-------|-------------|
 | `description` | Yes | group | Short description of the task group |
-| `suite` | Yes | group | Evaluation suite: `lm-eval-harness` or `lighteval` |
+| `suite` | Yes | group | Evaluation suite: `lm-eval-harness`, `lighteval`, `evalchemy`, or `judgearena` |
 | `n_shots` | Yes | group or task | List of shot counts; must be set at group or task level |
 | `dataset` | Yes | group or task | HuggingFace dataset repo ID (required for pre-download and testing) |
 | `task` | Yes | task | Task name as recognized by the evaluation suite |
 | `subset` | No | task | HuggingFace dataset config/subset name |
+
+## JudgeArena suite
+
+The `judgearena` suite runs [JudgeArena](https://github.com/OpenEuroLLM/JudgeArena) generate-and-judge benchmarks **inside a JudgeArena image** — set `EVAL_CONTAINER_IMAGE` to one (vLLM + judgearena). Two task groups ship: `judgearena-suite` (win-rate on `alpaca-eval`, `arena-hard-v2.0`, `mt-bench`) and `judgearena-elo` (ELO rating vs an arena).
+
+```bash
+export EVAL_CONTAINER_IMAGE=/path/to/judgearena-<cluster>.sif
+oellm-eval schedule --models VLLM/<model> --task_groups judgearena-suite
+```
+
+For this suite the task name *is* a JudgeArena config: it resolves to a bundled config (carrying the task and a default local vLLM judge), so it needs **no `dataset` field** — JudgeArena fetches its own data via `judgearena-download`. `oellm-eval` injects `--model.name` and `--run.result_folder`; set `JUDGEARENA_CONFIG` to override the judge with your own config, and `JUDGEARENA_EXTRA_BINDS` if the config or data live outside the bound dirs. `collect` records a win-rate or ELO rating per model.
+
+Building the image and writing configs are covered in JudgeArena's [`docs/CONTAINER.md`](https://github.com/OpenEuroLLM/JudgeArena/blob/main/docs/CONTAINER.md).
 
 ## Language filtering (`group[lang]` brackets)
 
