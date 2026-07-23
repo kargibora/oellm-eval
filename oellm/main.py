@@ -59,6 +59,22 @@ def _resolve_slurm_mem() -> str:
     return "96G"
 
 
+# Inlined into the judgearena sbatch case (run inside the JudgeArena container):
+# turns a BattleReport/EloReport into the lm-eval results envelope so that the
+# generic `collect` extractor reads it with no suite-specific branch. Args:
+#   <results_subdir> <envelope_out.json> <model_name> <task>
+JUDGEARENA_TO_ENVELOPE = (
+    "import json,glob,sys;"
+    "rs,out,model,task=sys.argv[1:5];"
+    "f=sorted(glob.glob(rs+'/**/results-*.json',recursive=True));"
+    "d=json.load(open(f[-1])) if f else {};"
+    "v={'winrate':d['winrate']} if d.get('report_type')=='BattleReport' "
+    "else ({'elo_rating':d.get('elo_mean')} if d.get('report_type')=='EloReport' else {});"
+    "f and json.dump({'config_general':{'model_name':model},"
+    "'results':{task:v},'n-shot':{task:0}},open(out,'w'))"
+)
+
+
 def _resolve_additional_model_args(local: bool = False) -> str:
     """Return model args for lighteval, defaulting to an explicit batch size.
     - if `local` is True: `batch_size=1`
@@ -436,6 +452,17 @@ def schedule_evals(
     logging.info(f"   Time limit with safety margin: {time_limit}")
     logging.info(f"   Requested host memory: {slurm_mem}")
 
+    # JudgeArena config: default is config-as-task (the task name resolves to a
+    # bundled JudgeArena config carrying task + judge). JUDGEARENA_CONFIG is an
+    # optional override — an explicit judge config, with the task name supplied
+    # separately via --task.
+    _ja_config = os.environ.get("JUDGEARENA_CONFIG", "")
+    judgearena_config_args = (
+        f'--config_path "{_ja_config}" --task "$task_path"'
+        if _ja_config
+        else '--config_path "$task_path"'
+    )
+
     sbatch_script = sbatch_template.format(
         csv_path=csv_path,
         max_array_len=max_array_len,
@@ -453,7 +480,8 @@ def schedule_evals(
         hf_hub_offline=_resolve_hf_hub_offline(local),
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
-        judgearena_config=os.environ.get("JUDGEARENA_CONFIG", ""),
+        judgearena_config_args=judgearena_config_args,
+        judgearena_to_envelope=JUDGEARENA_TO_ENVELOPE,
     )
 
     if not os.environ.get("ACCOUNT"):
@@ -615,6 +643,8 @@ def collect_results(
             "exact_match",
             "chrf++",
             "bleu",
+            "winrate",
+            "elo_rating",
         ]:
             val, key = _first_numeric(result_dict, metric)
             if val is not None:
@@ -684,52 +714,6 @@ def collect_results(
     for json_file in json_files:
         with open(json_file) as f:
             data = json.load(f)
-
-        if data.get("report_type") == "BattleReport" and "winrate" in data:
-            model_name = data.get("model_A", "unknown")
-            task_name = data.get("task", "unknown")
-            if check:
-                completed_jobs.add((model_name, task_name, 0))
-            rows.append(
-                {
-                    "model_name": model_name,
-                    "task": task_name,
-                    "n_shot": 0,
-                    "performance": data["winrate"],
-                    "metric_name": "winrate",
-                }
-            )
-            continue
-
-        if data.get("report_type") == "EloReport":
-            model_name = data.get("model_name", "unknown")
-            task_name = data.get("task") or data.get("arena", "elo")
-            ratings = data.get("mean_ratings") or {}
-            if check:
-                completed_jobs.add((model_name, task_name, 0))
-            # focal model's ELO point estimate (arena scale; higher is better)
-            rows.append(
-                {
-                    "model_name": model_name,
-                    "task": task_name,
-                    "n_shot": 0,
-                    "performance": data.get("elo_mean"),
-                    "metric_name": "elo_rating",
-                }
-            )
-            # arena rank as a readable "rank/n" string (e.g. "3/55" = 3rd of 55)
-            if model_name in ratings and ratings:
-                rank = 1 + sum(1 for v in ratings.values() if v > ratings[model_name])
-                rows.append(
-                    {
-                        "model_name": model_name,
-                        "task": task_name,
-                        "n_shot": 0,
-                        "performance": f"{rank}/{len(ratings)}",
-                        "metric_name": "elo_arena_rank",
-                    }
-                )
-            continue
 
         # Extract model name/path from a few common locations used in different
         # versions of the result JSON schema.
