@@ -824,6 +824,13 @@ task_groups:
         suite: judgearena
       - task: mt-bench
         suite: judgearena
+  judgearena-elo:
+    suite: judgearena
+    description: "JudgeArena ELO rating vs the LMArena-100k arena, local vLLM judge. Runs inside EVAL_CONTAINER_IMAGE (needs a JudgeArena image + judge config; see docs/CONTAINERS.md)."
+    n_shots: [0]
+    tasks:
+      - task: elo-lmarena-100k
+        suite: judgearena
 
 super_groups:
   oellm-multilingual:

@@ -701,6 +701,36 @@ def collect_results(
             )
             continue
 
+        if data.get("report_type") == "EloReport":
+            model_name = data.get("model_name", "unknown")
+            task_name = data.get("task") or data.get("arena", "elo")
+            ratings = data.get("mean_ratings") or {}
+            if check:
+                completed_jobs.add((model_name, task_name, 0))
+            # focal model's ELO point estimate (arena scale; higher is better)
+            rows.append(
+                {
+                    "model_name": model_name,
+                    "task": task_name,
+                    "n_shot": 0,
+                    "performance": data.get("elo_mean"),
+                    "metric_name": "elo_rating",
+                }
+            )
+            # arena rank as a readable "rank/n" string (e.g. "3/55" = 3rd of 55)
+            if model_name in ratings and ratings:
+                rank = 1 + sum(1 for v in ratings.values() if v > ratings[model_name])
+                rows.append(
+                    {
+                        "model_name": model_name,
+                        "task": task_name,
+                        "n_shot": 0,
+                        "performance": f"{rank}/{len(ratings)}",
+                        "metric_name": "elo_arena_rank",
+                    }
+                )
+            continue
+
         # Extract model name/path from a few common locations used in different
         # versions of the result JSON schema.
         model_name = (
