@@ -191,6 +191,25 @@ MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
 
+## JudgeArena suite
+
+`judgearena-suite` (win-rate on `alpaca-eval`, `arena-hard-v2.0`, `mt-bench`) and `judgearena-elo` (ELO rating vs an arena) run [JudgeArena](https://github.com/OpenEuroLLM/JudgeArena) generate-and-judge benchmarks inside a JudgeArena image (vLLM + judgearena). Point `EVAL_CONTAINER_IMAGE` at one.
+
+These datasets aren't fetched from the HF cache like other suites — the image ships a `judgearena-download` command. Run it once on a node with internet (data lands under `$HF_HOME`, which oellm-eval binds), then schedule:
+
+```bash
+export EVAL_CONTAINER_IMAGE=/path/to/judgearena.sif
+export HF_HOME=/path/to/hf-cache
+
+# download datasets — all tasks, or name them: judgearena-download alpaca-eval
+singularity exec "$EVAL_CONTAINER_IMAGE" judgearena-download
+
+# schedule; compute nodes read the prefetched data offline
+oellm-eval schedule --models VLLM/<model> --task_groups judgearena-suite
+```
+
+Each task name is a bundled JudgeArena config carrying the task and a default local vLLM judge; set `JUDGEARENA_CONFIG` to a YAML to use your own judge instead. `collect` records a win-rate or ELO rating per model.
+
 ## ⚠️ Dataset Pre-Download Warning
 
 **Datasets are only automatically pre-downloaded for tasks defined in [`task-groups.yaml`](oellm/resources/task-groups.yaml).**
