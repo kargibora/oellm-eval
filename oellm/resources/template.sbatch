@@ -227,14 +227,8 @@ do
                     --model.name "VLLM/$model_path" \
                     --run.result_folder "$RESULTS_SUBDIR" \
                     ${{LIMIT:+--generation.n_instructions $LIMIT}}
-            # Convert JudgeArena's report to the lm-eval results envelope so that
-            # `collect` reads it through the generic extractor (no suite-specific branch).
-            singularity exec $SINGULARITY_ARGS \
-                --bind "$BIND_PATHS${{JUDGEARENA_EXTRA_BINDS:+,$JUDGEARENA_EXTRA_BINDS}}" \
-                $EVAL_SIF_PATH \
-                python -c "{judgearena_to_envelope}" \
-                    "$RESULTS_SUBDIR" "{evals_dir}/$(openssl rand -hex 5).json" \
-                    "$model_path" "$task_path"
+            # JudgeArena writes a standard lm-eval results.json envelope into
+            # $RESULTS_SUBDIR, so `collect` reads it through the generic extractor.
             ;;
         *)
             echo "[warning] Unknown evaluation suite '$eval_suite'. Skipping."

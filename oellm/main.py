@@ -59,22 +59,6 @@ def _resolve_slurm_mem() -> str:
     return "96G"
 
 
-# Inlined into the judgearena sbatch case (run inside the JudgeArena container):
-# turns a BattleReport/EloReport into the lm-eval results envelope so that the
-# generic `collect` extractor reads it with no suite-specific branch. Args:
-#   <results_subdir> <envelope_out.json> <model_name> <task>
-JUDGEARENA_TO_ENVELOPE = (
-    "import json,glob,sys;"
-    "rs,out,model,task=sys.argv[1:5];"
-    "f=sorted(glob.glob(rs+'/**/results-*.json',recursive=True));"
-    "d=json.load(open(f[-1])) if f else {};"
-    "v={'winrate':d['winrate']} if d.get('report_type')=='BattleReport' "
-    "else ({'elo_rating':d.get('elo_mean')} if d.get('report_type')=='EloReport' else {});"
-    "f and json.dump({'config_general':{'model_name':model},"
-    "'results':{task:v},'n-shot':{task:0}},open(out,'w'))"
-)
-
-
 def _resolve_additional_model_args(local: bool = False) -> str:
     """Return model args for lighteval, defaulting to an explicit batch size.
     - if `local` is True: `batch_size=1`
@@ -481,7 +465,6 @@ def schedule_evals(
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
         judgearena_config_args=judgearena_config_args,
-        judgearena_to_envelope=JUDGEARENA_TO_ENVELOPE,
     )
 
     if not os.environ.get("ACCOUNT"):
