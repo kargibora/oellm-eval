@@ -1,0 +1,13 @@
+Bootstrap: docker
+From: vllm/vllm-openai-rocm:latest
+
+%labels
+    Author      oellm-cli
+    Description JudgeArena image (vLLM + judgearena) for generate-and-judge evals
+
+%post
+    # Bake JudgeArena into the vLLM ROCm image's Python (no overlay venv).
+    pip install --no-cache-dir "judgearena @ git+https://github.com/OpenEuroLLM/JudgeArena@main"
+
+%runscript
+    exec judgearena "$@"
