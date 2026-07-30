@@ -226,9 +226,11 @@ do
                 judgearena {judgearena_config_args} \
                     --model.name "VLLM/$model_path" \
                     --run.result_folder "$RESULTS_SUBDIR" \
+                    --run.emit_envelope true \
                     ${{LIMIT:+--generation.n_instructions $LIMIT}}
-            # JudgeArena writes a standard lm-eval results.json envelope into
-            # $RESULTS_SUBDIR, so `collect` reads it through the generic extractor.
+            # --run.emit_envelope makes JudgeArena write a standard lm-eval
+            # results.json into $RESULTS_SUBDIR, so `collect` reads it through
+            # the generic extractor (no suite-specific conversion).
             ;;
         *)
             echo "[warning] Unknown evaluation suite '$eval_suite'. Skipping."

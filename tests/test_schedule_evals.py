@@ -130,8 +130,9 @@ def test_generated_sbatch_has_judgearena_case(tmp_path):
     assert "$EVAL_SIF_PATH" in script
     assert 'judgearena --config_path "$task_path"' in script
     assert '--model.name "VLLM/$model_path"' in script
-    # JudgeArena writes the lm-eval envelope into the run folder that collect scans
+    # JudgeArena writes the lm-eval envelope (opt-in) into the run folder collect scans
     assert '--run.result_folder "$RESULTS_SUBDIR"' in script
+    assert "--run.emit_envelope true" in script
 
 
 def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):
