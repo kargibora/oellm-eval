@@ -133,6 +133,8 @@ def test_generated_sbatch_has_judgearena_case(tmp_path):
     # JudgeArena writes the lm-eval envelope (opt-in) into the run folder collect scans
     assert '--run.result_folder "$RESULTS_SUBDIR"' in script
     assert "--run.emit_envelope true" in script
+    # free-form JudgeArena flags can be injected via the JUDGEARENA_ARGS env var
+    assert "$JUDGEARENA_ARGS" in script
 
 
 def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):
