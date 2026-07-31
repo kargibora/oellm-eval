@@ -592,6 +592,12 @@ def collect_results(
     ) -> tuple[float | None, str | None]:
         """Return (value, metric_name) for task_name from result_dict."""
 
+        # A metric can only come from a {metric: value} mapping. Non-envelope JSON
+        # files (e.g. a suite's own native artifacts) may put a scalar or list here;
+        # skip them instead of crashing the whole collect.
+        if not isinstance(result_dict, dict):
+            return None, None
+
         # Skip non-metric keys; lm-eval uses suffixes like ",none" or ",remove_whitespace"
         def _first_numeric(d: dict, *candidates: str) -> tuple[float | None, str | None]:
             for c in candidates:
