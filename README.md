@@ -208,7 +208,7 @@ singularity exec "$EVAL_CONTAINER_IMAGE" judgearena-download
 oellm-eval schedule --models VLLM/<model> --task_groups judgearena-suite
 ```
 
-Each task name is a bundled JudgeArena config carrying the task and a default local vLLM judge; set `JUDGEARENA_CONFIG` to a YAML to use your own judge instead. To override individual JudgeArena fields without a config file, set `JUDGEARENA_ARGS` to extra CLI flags — they are appended to the `judgearena` command (e.g. `export JUDGEARENA_ARGS='--judge.model VLLM/google/gemma-4-31b-it --elo.arena LMArena-140k'`). `collect` records a win-rate or ELO rating per model.
+Each task name resolves to a bundled JudgeArena config carrying the task, its baseline, and a default local vLLM judge. Override anything via `JUDGEARENA_ARGS` — extra flags appended to the `judgearena` command (e.g. `export JUDGEARENA_ARGS='--judge.model VLLM/google/gemma-4-31b-it --elo.elo_random_battles 500'`); to swap the whole config, pass `--config_path /path/to/your.yaml` there (the scheduled task is still applied via `--task`). `collect` records a win-rate or ELO rating per model.
 
 ## ⚠️ Dataset Pre-Download Warning
 

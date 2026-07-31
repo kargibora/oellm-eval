@@ -128,7 +128,11 @@ def test_generated_sbatch_has_judgearena_case(tmp_path):
     assert "judgearena)" in script
     assert "singularity exec" in script
     assert "$EVAL_SIF_PATH" in script
+    # config_path defaults to the task name (resolves the bundled config); the
+    # scheduled task is always re-applied via --task so it stays per-job even
+    # when JUDGEARENA_ARGS overrides --config_path.
     assert 'judgearena --config_path "$task_path"' in script
+    assert '--task "$task_path"' in script
     assert '--model.name "VLLM/$model_path"' in script
     # JudgeArena writes the lm-eval envelope (opt-in) into the run folder collect scans
     assert '--run.result_folder "$RESULTS_SUBDIR"' in script

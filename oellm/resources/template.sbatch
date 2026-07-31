@@ -223,8 +223,9 @@ do
                 --bind "$BIND_PATHS${{JUDGEARENA_EXTRA_BINDS:+,$JUDGEARENA_EXTRA_BINDS}}" \
                 $EVAL_SIF_PATH \
                 env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
-                judgearena {judgearena_config_args} \
+                judgearena --config_path "$task_path" \
                     $JUDGEARENA_ARGS \
+                    --task "$task_path" \
                     --model.name "VLLM/$model_path" \
                     --run.result_folder "$RESULTS_SUBDIR" \
                     --run.emit_envelope true \

@@ -436,17 +436,6 @@ def schedule_evals(
     logging.info(f"   Time limit with safety margin: {time_limit}")
     logging.info(f"   Requested host memory: {slurm_mem}")
 
-    # JudgeArena config: default is config-as-task (the task name resolves to a
-    # bundled JudgeArena config carrying task + judge). JUDGEARENA_CONFIG is an
-    # optional override — an explicit judge config, with the task name supplied
-    # separately via --task.
-    _ja_config = os.environ.get("JUDGEARENA_CONFIG", "")
-    judgearena_config_args = (
-        f'--config_path "{_ja_config}" --task "$task_path"'
-        if _ja_config
-        else '--config_path "$task_path"'
-    )
-
     sbatch_script = sbatch_template.format(
         csv_path=csv_path,
         max_array_len=max_array_len,
@@ -464,7 +453,6 @@ def schedule_evals(
         hf_hub_offline=_resolve_hf_hub_offline(local),
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),
-        judgearena_config_args=judgearena_config_args,
     )
 
     if not os.environ.get("ACCOUNT"):
