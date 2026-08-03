@@ -173,14 +173,14 @@ class TestExpandTaskGroupsWithTemplates:
         assert len(results) == 32
 
 
-def test_judgearena_group_expands_to_judgearena_suite():
-    results = _expand_task_groups(["judgearena-alpaca"])
-    suites = {r.suite for r in results}
-    assert suites == {"judgearena"}
-    assert any(r.task == "alpaca-eval" for r in results)
-
-
-def test_judgearena_suite_group_expands_all_tasks():
-    results = _expand_task_groups(["judgearena-suite"])
-    assert {r.suite for r in results} == {"judgearena"}
-    assert {r.task for r in results} == {"alpaca-eval", "arena-hard-v2.0", "mt-bench"}
+def test_judgearena_groups_are_per_task():
+    # Each JudgeArena benchmark is its own single-task group (no bundle).
+    for group, task in [
+        ("judgearena-alpaca", "alpaca-eval"),
+        ("judgearena-arena-hard", "arena-hard-v2.0"),
+        ("judgearena-mt-bench", "mt-bench"),
+        ("judgearena-elo", "elo-lmarena-100k"),
+    ]:
+        results = _expand_task_groups([group])
+        assert {r.suite for r in results} == {"judgearena"}
+        assert {r.task for r in results} == {task}

@@ -191,9 +191,9 @@ MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
 
-## JudgeArena suite
+## JudgeArena tasks
 
-`judgearena-suite` (win-rate on `alpaca-eval`, `arena-hard-v2.0`, `mt-bench`) and `judgearena-elo` (ELO rating vs an arena) run [JudgeArena](https://github.com/OpenEuroLLM/JudgeArena) generate-and-judge benchmarks inside a JudgeArena image (vLLM + judgearena). Point `EVAL_CONTAINER_IMAGE` at one.
+Each JudgeArena benchmark is its own task group: `judgearena-alpaca`, `judgearena-arena-hard`, `judgearena-mt-bench` (win-rate) and `judgearena-elo` (ELO rating vs an arena). They run [JudgeArena](https://github.com/OpenEuroLLM/JudgeArena) generate-and-judge benchmarks inside a JudgeArena image (vLLM + judgearena); point `EVAL_CONTAINER_IMAGE` at one. Run several by listing them, e.g. `--task_groups judgearena-alpaca,judgearena-mt-bench`.
 
 These datasets aren't fetched from the HF cache like other suites — the image ships a `judgearena-download` command. Run it once on a node with internet (data lands under `$HF_HOME`, which oellm-eval binds), then schedule:
 
@@ -205,7 +205,7 @@ export HF_HOME=/path/to/hf-cache
 singularity exec "$EVAL_CONTAINER_IMAGE" judgearena-download
 
 # schedule; compute nodes read the prefetched data offline
-oellm-eval schedule --models VLLM/<model> --task_groups judgearena-suite
+oellm-eval schedule --models <model> --task_groups judgearena-alpaca
 ```
 
 Each task name resolves to a bundled JudgeArena config carrying the task, its baseline, and a default local vLLM judge. Override anything via `JUDGEARENA_ARGS` — extra flags appended to the `judgearena` command (e.g. `export JUDGEARENA_ARGS='--judge.model VLLM/google/gemma-4-31b-it --elo.elo_random_battles 500'`); to swap the whole config, pass `--config_path /path/to/your.yaml` there (the scheduled task is still applied via `--task`). `collect` records a win-rate or ELO rating per model.

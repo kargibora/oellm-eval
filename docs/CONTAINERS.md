@@ -15,9 +15,9 @@ Images are compressed with zstd (level 3) via mksquashfs for a good balance of s
 
 ## JudgeArena image
 
-`judgearena-suite` and `judgearena-elo` run inside a separate image (vLLM + [JudgeArena](https://github.com/OpenEuroLLM/JudgeArena)), not the per-cluster `eval_env-*` image. Its definition is `containers/judgearena.def`, but it is intentionally **not** in the build matrix above, so CI does not build it — the image is published manually for now at [`kbora/judgearena-container`](https://huggingface.co/datasets/kbora/judgearena-container). To wire it into CI later, add `- image: judgearena` to the matrix.
+The JudgeArena task groups (`judgearena-alpaca`, `judgearena-arena-hard`, `judgearena-mt-bench`, `judgearena-elo`) run inside a separate image (vLLM + [JudgeArena](https://github.com/OpenEuroLLM/JudgeArena)), not the per-cluster `eval_env-*` image. Its definition is `containers/judgearena.def`, but it is intentionally **not** in the build matrix above, so CI does not build it — the image is published manually for now at [`kbora/judgearena-container`](https://huggingface.co/datasets/kbora/judgearena-container). To wire it into CI later, add `- image: judgearena` to the matrix.
 
-Point `EVAL_CONTAINER_IMAGE` at this `.sif` when scheduling JudgeArena tasks (see the JudgeArena suite section in the [README](../README.md#judgearena-suite)). Run it **without** `--rocm` (`SINGULARITY_ARGS`): the flag injects host ROCm libs built against a newer glibc than the image ships and breaks the `torch` import; `--gpus`/`--device` plus the default `/dev` mount still provide GPU access.
+Point `EVAL_CONTAINER_IMAGE` at this `.sif` when scheduling JudgeArena tasks (see the JudgeArena tasks section in the [README](../README.md#judgearena-tasks)). Run it **without** `--rocm` (`SINGULARITY_ARGS`): the flag injects host ROCm libs built against a newer glibc than the image ships and breaks the `torch` import; `--gpus`/`--device` plus the default `/dev` mount still provide GPU access.
 
 ## Adding a New Cluster
 
