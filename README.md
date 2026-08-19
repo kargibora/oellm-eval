@@ -195,14 +195,14 @@ MODEL_ARGS='batch_size=8' oellm-eval schedule \
 
 JudgeArena tasks are selected by their packaged task ID. Their dataset sources,
 revisions, baselines, prompts, and scorers remain owned by JudgeArena; the runtime
-config only supplies experiment settings such as the judge model. The
+config only provides experiment settings such as the judge model. The
 `judgearena` entry in `task-groups.yaml` registers the packaged task IDs with the
 JudgeArena suite.
 
 ```yaml
 # judgearena-runtime.yaml
 judge:
-  model: VLLM/google/gemma-4-12b-it
+  model: VLLM/google/gemma-4-12b-it 
   engine_kwargs:
     tensor_parallel_size: 4
 model:

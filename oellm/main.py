@@ -309,8 +309,6 @@ def schedule_evals(
 
     df["eval_suite"] = df["eval_suite"].str.lower()
 
-    judgearena_jobs = df["eval_suite"].eq("judgearena")
-
     judgearena_values = dict(judgearena_kwargs or {})
     judgearena_config = None
     if raw_config := judgearena_values.pop("config_path", None):
@@ -333,8 +331,6 @@ def schedule_evals(
 
     eval_base_dir = Path(os.environ.get("EVAL_BASE_DIR", os.environ["EVAL_OUTPUT_DIR"]))
     os.environ.setdefault("JUDGEARENA_DATA", str(eval_base_dir / "judgearena-data"))
-    if judgearena_jobs.any() and df.loc[judgearena_jobs, "n_shot"].ne(0).any():
-        logging.warning("JudgeArena ignores `n_shot`.")
 
     if not skip_checks:
         if use_venv:
@@ -359,17 +355,21 @@ def schedule_evals(
                     container_image=image,
                     venv_path=None,
                 )
+    else:
+        logging.info("Skipping runtime environment check (--skip-checks enabled)")
 
+    # Ensure that all datasets required by the tasks are cached locally to avoid
+    # network access on compute nodes.
+    if not skip_checks:
         dataset_specs = []
         if task_groups:
             group_list = split_group_tokens(task_groups)
             dataset_specs = _collect_dataset_specs(group_list)
         else:
             # Look up individual tasks in task groups registry
-            all_tasks = df.loc[~judgearena_jobs, "task_path"].unique().tolist()
-            if all_tasks:
-                dataset_specs = _lookup_dataset_specs_for_tasks(all_tasks)
-            if all_tasks and not dataset_specs:
+            all_tasks = df["task_path"].unique().tolist()
+            dataset_specs = _lookup_dataset_specs_for_tasks(all_tasks)
+            if not dataset_specs:
                 logging.info(
                     "No dataset specs found for tasks; skipping dataset pre-download"
                 )
@@ -379,7 +379,7 @@ def schedule_evals(
                 dataset_specs, trust_remote_code=trust_remote_code
             )
     else:
-        logging.info("Skipping runtime and dataset checks (--skip-checks enabled)")
+        logging.info("Skipping dataset pre-download (--skip-checks enabled)")
 
     if download_only:
         return None
