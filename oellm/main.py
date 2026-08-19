@@ -3,6 +3,7 @@ import logging
 import math
 import os
 import re
+import shlex
 import subprocess
 from dataclasses import dataclass
 from datetime import datetime
@@ -27,6 +28,7 @@ from oellm.utils import (
     _load_cluster_env,
     _num_jobs_in_queue,
     _pre_download_datasets_from_specs,
+    _pre_download_judge_arena_tasks,
     _process_model_paths,
     _setup_logging,
     capture_third_party_output_from_kwarg,
@@ -118,6 +120,7 @@ def schedule_evals(
     trust_remote_code: bool = True,
     venv_path: str | None = None,
     lm_eval_include_path: str | None = None,
+    judgearena_kwargs: dict[str, object] | None = None,
     local: bool = False,
     slurm_template_var: str | None = None,
     nodelist: str | None = None,
@@ -161,6 +164,10 @@ def schedule_evals(
             Passed as --include_path to lm_eval. Defaults to the bundled custom_lm_eval_tasks
             directory shipped with the package, which overrides broken upstream tasks
             (e.g. mgsm_native_cot_fr/de/es). Override to point at additional task YAMLs.
+        judgearena_kwargs: JudgeArena CLI arguments as a JSON object. Keys use
+            JudgeArena's dotted CLI names; `config_path` may reference a YAML config.
+            The scheduled task, candidate model, and result folder are appended by
+            oellm-eval.
         local: If True, run evaluations directly on the local machine using bash instead of
             submitting to SLURM. Requires --venv_path. Skips cluster environment detection and
             runs all evaluations sequentially in a single process.
@@ -193,15 +200,6 @@ def schedule_evals(
         _load_cluster_env()
 
     use_venv = venv_path is not None
-
-    if not skip_checks:
-        _ensure_runtime_environment(
-            use_venv=use_venv,
-            container_image=os.environ.get("EVAL_CONTAINER_IMAGE"),
-            venv_path=venv_path,
-        )
-    else:
-        logging.info("Skipping runtime environment check (--skip-checks enabled)")
 
     if isinstance(models, str) and models is not None:
         models = [m.strip() for m in models.split(",") if m.strip()]  # type: ignore
@@ -312,18 +310,74 @@ def schedule_evals(
 
     df["eval_suite"] = df["eval_suite"].str.lower()
 
-    # Ensure that all datasets required by the tasks are cached locally to avoid
-    # network access on compute nodes.
+    judgearena_jobs = df["eval_suite"].eq("judgearena")
+
+    judgearena_values = dict(judgearena_kwargs or {})
+    judgearena_config = None
+    if raw_config := judgearena_values.pop("config_path", None):
+        judgearena_config = Path(str(raw_config)).expanduser().resolve()
+        if not judgearena_config.is_file():
+            raise ValueError(f"JudgeArena config not found: {judgearena_config}")
+
+    judgearena_cli_args: list[str] = (
+        ["--config_path", str(judgearena_config)] if judgearena_config is not None else []
+    )
+    for key, value in judgearena_values.items():
+        serialized = value if isinstance(value, str) else json.dumps(value)
+        judgearena_cli_args.extend([f"--{key}", serialized])
+    judgearena_args = shlex.join(judgearena_cli_args).replace("$", "$$")
+    judgearena_config_path = (
+        shlex.quote(str(judgearena_config)).replace("$", "$$")
+        if judgearena_config is not None
+        else "''"
+    )
+
+    eval_base_dir = Path(os.environ.get("EVAL_BASE_DIR", os.environ["EVAL_OUTPUT_DIR"]))
+    os.environ.setdefault("JUDGEARENA_DATA", str(eval_base_dir / "judgearena-data"))
+    if judgearena_jobs.any() and df.loc[judgearena_jobs, "n_shot"].ne(0).any():
+        logging.warning("JudgeArena ignores `n_shot`.")
+
     if not skip_checks:
+        if use_venv:
+            _ensure_runtime_environment(
+                use_venv=True,
+                container_image=None,
+                venv_path=venv_path,
+            )
+        else:
+            image_vars = {
+                "JUDGEARENA_CONTAINER_IMAGE"
+                if suite == "judgearena"
+                else "EVAL_CONTAINER_IMAGE"
+                for suite in df["eval_suite"]
+            }
+            for image_var in sorted(image_vars):
+                image = os.environ.get(image_var)
+                if not image:
+                    raise ValueError(f"Set {image_var} to run the selected tasks.")
+                _ensure_runtime_environment(
+                    use_venv=False,
+                    container_image=image,
+                    venv_path=None,
+                )
+
+        judgearena_task_names = df.loc[judgearena_jobs, "task_path"].unique().tolist()
+        if judgearena_task_names:
+            _pre_download_judge_arena_tasks(
+                judgearena_task_names,
+                venv_path=venv_path,
+            )
+
         dataset_specs = []
         if task_groups:
             group_list = split_group_tokens(task_groups)
             dataset_specs = _collect_dataset_specs(group_list)
         else:
             # Look up individual tasks in task groups registry
-            all_tasks = df["task_path"].unique().tolist()
-            dataset_specs = _lookup_dataset_specs_for_tasks(all_tasks)
-            if not dataset_specs:
+            all_tasks = df.loc[~judgearena_jobs, "task_path"].unique().tolist()
+            if all_tasks:
+                dataset_specs = _lookup_dataset_specs_for_tasks(all_tasks)
+            if all_tasks and not dataset_specs:
                 logging.info(
                     "No dataset specs found for tasks; skipping dataset pre-download"
                 )
@@ -333,7 +387,7 @@ def schedule_evals(
                 dataset_specs, trust_remote_code=trust_remote_code
             )
     else:
-        logging.info("Skipping dataset pre-download (--skip-checks enabled)")
+        logging.info("Skipping runtime and dataset checks (--skip-checks enabled)")
 
     if download_only:
         return None
@@ -450,6 +504,8 @@ def schedule_evals(
         venv_path=venv_path or "",
         lm_eval_include_path=lm_eval_include_path
         or str(files("oellm.resources") / "custom_lm_eval_tasks"),
+        judgearena_args=judgearena_args,
+        judgearena_config_path=judgearena_config_path,
         hf_hub_offline=_resolve_hf_hub_offline(local),
         additional_model_args=_resolve_additional_model_args(local),  # Batch size
         evalchemy_dir=os.environ.get("EVALCHEMY_DIR", "/opt/evalchemy"),

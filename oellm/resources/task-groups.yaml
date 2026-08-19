@@ -850,6 +850,27 @@ task_groups:
       - task: "polymath_{lang}_top"
         subset: "{lang}"
 
+  judgearena:
+    description: "Benchmarks executed through JudgeArena."
+    suite: judgearena
+    n_shots: [0]
+    tasks:
+      - task: alpaca-eval
+      - task: alpaca-eval-2.0-official
+      - task: arena-hard-v0.1
+      - task: arena-hard-v0.1-official
+      - task: arena-hard-v2.0
+      - task: arena-hard-v2.0-official
+      - task: elo-comparia
+      - task: elo-lmarena
+      - task: elo-lmarena-100k
+      - task: elo-lmarena-140k
+      - task: fluency
+      - task: m-arena-hard-v0.1
+      - task: m-arena-hard-v2.0
+      - task: mt-bench
+      - task: mt-bench-official
+
 super_groups:
   oellm-multilingual:
     description: "Combined Belebele EU set plus multilingual benchmarks"

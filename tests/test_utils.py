@@ -1,4 +1,10 @@
-from oellm.utils import _expand_local_model_paths, _num_jobs_in_queue
+from unittest.mock import Mock
+
+from oellm.utils import (
+    _expand_local_model_paths,
+    _num_jobs_in_queue,
+    _pre_download_judge_arena_tasks,
+)
 
 
 class TestExpandLocalModelPaths:
@@ -54,3 +60,31 @@ class TestNumJobsInQueue:
 
         monkeypatch.setattr("oellm.utils.subprocess.run", lambda *a, **kw: Result())
         assert _num_jobs_in_queue() == 0
+
+
+def test_pre_download_judge_arena_tasks_uses_container_and_shared_paths(
+    tmp_path, monkeypatch
+):
+    image = tmp_path / "judgearena.sif"
+    data_root = tmp_path / "judgearena-data"
+    hf_home = tmp_path / "hf-cache"
+    run = Mock()
+    monkeypatch.setattr("oellm.utils.subprocess.run", run)
+    for key, value in {
+        "EVAL_BASE_DIR": tmp_path,
+        "JUDGEARENA_CONTAINER_IMAGE": image,
+        "JUDGEARENA_DATA": data_root,
+        "HF_HOME": hf_home,
+    }.items():
+        monkeypatch.setenv(key, str(value))
+
+    _pre_download_judge_arena_tasks(
+        ["mt-bench", "alpaca-eval", "mt-bench"],
+        venv_path=None,
+    )
+
+    command = run.call_args.args[0]
+    assert command[:3] == ["singularity", "exec", "--bind"]
+    assert str(image) in command
+    assert command[-4:] == ["tasks", "download", "alpaca-eval", "mt-bench"]
+    assert run.call_args.kwargs["env"]["JUDGEARENA_DATA"] == str(data_root)

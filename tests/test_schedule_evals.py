@@ -1,9 +1,11 @@
 import os
+import subprocess
 import sys
 from importlib.resources import files
 from pathlib import Path
 from unittest.mock import patch
 
+import pandas as pd
 import pytest
 import yaml
 
@@ -109,6 +111,60 @@ def test_schedule_evals_no_nodelist(tmp_path):
     assert len(sbatch_files) == 1
     sbatch_content = sbatch_files[0].read_text()
     assert "--nodelist" not in sbatch_content
+
+
+def test_schedule_evals_runs_packaged_judgearena_task(tmp_path):
+    config_path = tmp_path / "judgearena-runtime.yaml"
+    config_path.write_text("judge:\n  model: VLLM/judge\n")
+    with (
+        patch("oellm.main._load_cluster_env"),
+        patch("oellm.main._num_jobs_in_queue", return_value=0),
+        patch("oellm.main._process_model_paths"),
+        patch("oellm.main._ensure_runtime_environment") as ensure_runtime,
+        patch("oellm.main._pre_download_judge_arena_tasks") as prefetch,
+        patch.dict(
+            os.environ,
+            {
+                "EVAL_OUTPUT_DIR": str(tmp_path),
+                "EVAL_BASE_DIR": str(tmp_path),
+                "HF_HOME": str(tmp_path / "hf-cache"),
+                "JUDGEARENA_CONTAINER_IMAGE": "judgearena-lumi.sif",
+            },
+        ),
+    ):
+        schedule_evals(
+            models="OpenEuroLLM/test-model",
+            tasks="arena-hard-v2.0-official",
+            n_shot=0,
+            judgearena_kwargs={
+                "judge.temperature": 0,
+                "judge.engine_kwargs": {"tensor_parallel_size": 4},
+                "config_path": str(config_path),
+            },
+            dry_run=True,
+        )
+
+    script = next(tmp_path.rglob("submit_evals.sbatch")).read_text()
+    jobs = pd.read_csv(next(tmp_path.rglob("jobs.csv")))
+    assert jobs.loc[0, "eval_suite"] == "judgearena"
+    assert jobs.loc[0, "n_shot"] == 0
+    assert "judgearena-lumi.sif" in script
+    assert '"$JUDGEARENA_SIF_PATH"' in script
+    assert f"--config_path {config_path}" in script
+    assert "--judge.temperature 0" in script
+    assert "--judge.engine_kwargs '{\"tensor_parallel_size\": 4}'" in script
+    assert f"JUDGEARENA_CONFIG_PATH={config_path}" in script
+    assert '--task "$task_path"' in script
+    assert '--model.name "VLLM/$model_path"' in script
+    assert '--config_path "$task_path"' not in script
+    subprocess.run(
+        ["bash", "-n", str(next(tmp_path.rglob("submit_evals.sbatch")))], check=True
+    )
+    ensure_runtime.assert_called_once_with(
+        use_venv=False, container_image="judgearena-lumi.sif", venv_path=None
+    )
+    assert prefetch.call_args.args[0] == ["arena-hard-v2.0-official"]
+    assert prefetch.call_args.kwargs == {"venv_path": None}
 
 
 def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):

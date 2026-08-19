@@ -18,14 +18,19 @@ TOTAL_EVALS={total_evals}
 LIMIT="{limit}"
 VENV_PATH="{venv_path}"
 LM_EVAL_INCLUDE_PATH="{lm_eval_include_path}"
+JUDGEARENA_ARGS=({judgearena_args})
+JUDGEARENA_CONFIG_PATH={judgearena_config_path}
+export JUDGEARENA_DATA="$JUDGEARENA_DATA"
 
 # avoiding crashes due to compute nodes not having access to the internet
 export HF_HOME=$HF_HOME
 export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
+mkdir -p "$JUDGEARENA_DATA"
 
-# Path to the shared Singularity image that contains all runtime deps (container mode)
+# Paths to the suite containers (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
+export JUDGEARENA_SIF_PATH="$EVAL_BASE_DIR/$JUDGEARENA_CONTAINER_IMAGE"
 
 export MIOPEN_USER_DB_PATH="/tmp/$USER-miopen-${{SLURM_JOB_ID:-$$}}"
 export MIOPEN_CUSTOM_CACHE_DIR="$MIOPEN_USER_DB_PATH"
@@ -212,6 +217,42 @@ do
             else
                 echo "[error] evalchemy suite requires --venv_path (not supported in container mode)."
                 exit 1
+            fi
+            ;;
+        judgearena)
+            RESULTS_SUBDIR="{evals_dir}/$(openssl rand -hex 5)"
+            mkdir -p "$RESULTS_SUBDIR"
+            JUDGEARENA_BIND_PATHS="$BIND_PATHS,$JUDGEARENA_DATA:$JUDGEARENA_DATA"
+            if [ -n "$JUDGEARENA_CONFIG_PATH" ]; then
+                CONFIG_DIR="$(dirname "$JUDGEARENA_CONFIG_PATH")"
+                if [[ $CONFIG_DIR != $EVAL_BASE_DIR* ]]; then
+                    JUDGEARENA_BIND_PATHS="$JUDGEARENA_BIND_PATHS,$CONFIG_DIR:$CONFIG_DIR"
+                fi
+            fi
+            if [ -n "$VENV_PATH" ]; then
+                source "$VENV_PATH/bin/activate"
+                judgearena \
+                    "${{JUDGEARENA_ARGS[@]}}" \
+                    --task "$task_path" \
+                    --model.name "VLLM/$model_path" \
+                    --run.result_folder "$RESULTS_SUBDIR" \
+                    ${{LIMIT:+--generation.n_instructions $LIMIT}}
+            else
+                singularity exec $SINGULARITY_ARGS \
+                    $SINGULARITY_ENV_ARGS \
+                    $SINGULARITY_HOME_ARG \
+                    --bind "$JUDGEARENA_BIND_PATHS" \
+                    "$JUDGEARENA_SIF_PATH" \
+                    env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
+                        JUDGEARENA_DATA="$JUDGEARENA_DATA" \
+                        HF_HOME="$HF_HOME" \
+                        HF_DATASETS_CACHE="$HF_DATASETS_CACHE" \
+                    judgearena \
+                        "${{JUDGEARENA_ARGS[@]}}" \
+                        --task "$task_path" \
+                        --model.name "VLLM/$model_path" \
+                        --run.result_folder "$RESULTS_SUBDIR" \
+                        ${{LIMIT:+--generation.n_instructions $LIMIT}}
             fi
             ;;
         *)
