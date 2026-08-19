@@ -213,6 +213,13 @@ model:
 ```bash
 export JUDGEARENA_CONTAINER_IMAGE=judgearena-lumi.sif
 export JUDGEARENA_DATA=/path/to/shared/judge-arena-data
+export HF_HOME=/path/to/shared/huggingface-cache
+
+mkdir -p "$JUDGEARENA_DATA" "$HF_HOME"
+singularity exec \
+  --bind "$HF_HOME:$HF_HOME,$JUDGEARENA_DATA:$JUDGEARENA_DATA" \
+  "$EVAL_BASE_DIR/$JUDGEARENA_CONTAINER_IMAGE" \
+  judgearena tasks download arena-hard-v2.0-official
 
 oellm-eval schedule \
   --models /path/to/model \
@@ -224,10 +231,8 @@ oellm-eval schedule \
 
 ## ⚠️ Dataset Pre-Download Warning
 
-The current lm-eval and LightEval integration pre-downloads datasets from the
-metadata in [`task-groups.yaml`](oellm/resources/task-groups.yaml). JudgeArena
-instead delegates prefetching to its installed task definitions, which also own
-the pinned source revisions and normalization logic.
+Download JudgeArena tasks with its container before scheduling. Compute jobs
+reuse the files under `JUDGEARENA_DATA`.
 
 If you use custom tasks via `--tasks` that are not in the task groups registry, the CLI will attempt to look them up but **cannot guarantee the datasets will be cached**. This may cause failures on compute nodes that don't have network access.
 

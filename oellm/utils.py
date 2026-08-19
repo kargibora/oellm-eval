@@ -83,52 +83,6 @@ def _ensure_singularity_image(image_name: str | None) -> None:
             ) from e
 
 
-def _pre_download_judge_arena_tasks(
-    task_names: Iterable[str],
-    *,
-    venv_path: str | None,
-) -> None:
-    """Ask JudgeArena to download the pinned sources for selected task IDs."""
-    tasks = sorted(set(task_names))
-    if not tasks:
-        return
-
-    data_root = Path(os.environ["JUDGEARENA_DATA"]).expanduser().resolve()
-    hf_home = Path(os.environ["HF_HOME"]).expanduser().resolve()
-    data_root.mkdir(parents=True, exist_ok=True)
-    hf_home.mkdir(parents=True, exist_ok=True)
-    env = {
-        **os.environ,
-        "JUDGEARENA_DATA": str(data_root),
-        "HF_HOME": str(hf_home),
-        "HF_DATASETS_CACHE": str(hf_home / "datasets"),
-        "HF_HUB_OFFLINE": "0",
-        "TRANSFORMERS_OFFLINE": "0",
-    }
-
-    if venv_path:
-        command = [str(Path(venv_path) / "bin" / "judgearena")]
-    else:
-        container_image = os.environ.get("JUDGEARENA_CONTAINER_IMAGE")
-        if not container_image:
-            raise ValueError(
-                "A JudgeArena container image is required for task prefetching"
-            )
-        image_path = Path(os.environ["EVAL_BASE_DIR"]) / container_image
-        bind_paths = f"{hf_home}:{hf_home},{data_root}:{data_root}"
-        command = [
-            "singularity",
-            "exec",
-            "--bind",
-            bind_paths,
-            str(image_path),
-            "judgearena",
-        ]
-
-    logging.info(f"Pre-downloading JudgeArena tasks: {', '.join(tasks)}")
-    subprocess.run([*command, "tasks", "download", *tasks], check=True, env=env)
-
-
 def _setup_logging(verbose: bool = False):
     rich_handler = RichHandler(
         console=get_console(),

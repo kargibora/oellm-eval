@@ -28,7 +28,6 @@ from oellm.utils import (
     _load_cluster_env,
     _num_jobs_in_queue,
     _pre_download_datasets_from_specs,
-    _pre_download_judge_arena_tasks,
     _process_model_paths,
     _setup_logging,
     capture_third_party_output_from_kwarg,
@@ -360,13 +359,6 @@ def schedule_evals(
                     container_image=image,
                     venv_path=None,
                 )
-
-        judgearena_task_names = df.loc[judgearena_jobs, "task_path"].unique().tolist()
-        if judgearena_task_names:
-            _pre_download_judge_arena_tasks(
-                judgearena_task_names,
-                venv_path=venv_path,
-            )
 
         dataset_specs = []
         if task_groups:

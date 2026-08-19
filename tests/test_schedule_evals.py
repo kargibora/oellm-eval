@@ -121,7 +121,6 @@ def test_schedule_evals_runs_packaged_judgearena_task(tmp_path):
         patch("oellm.main._num_jobs_in_queue", return_value=0),
         patch("oellm.main._process_model_paths"),
         patch("oellm.main._ensure_runtime_environment") as ensure_runtime,
-        patch("oellm.main._pre_download_judge_arena_tasks") as prefetch,
         patch.dict(
             os.environ,
             {
@@ -163,8 +162,6 @@ def test_schedule_evals_runs_packaged_judgearena_task(tmp_path):
     ensure_runtime.assert_called_once_with(
         use_venv=False, container_image="judgearena-lumi.sif", venv_path=None
     )
-    assert prefetch.call_args.args[0] == ["arena-hard-v2.0-official"]
-    assert prefetch.call_args.kwargs == {"venv_path": None}
 
 
 def test_schedule_evals_slurm_template_var_invalid_json(tmp_path):
