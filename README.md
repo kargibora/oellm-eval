@@ -191,9 +191,43 @@ MODEL_ARGS='batch_size=8' oellm-eval schedule \
   --models "model-name" --task_groups "belebele-eu-cf" --venv_path .venv
 ```
 
+## JudgeArena Tasks
+
+JudgeArena tasks are selected by their packaged task ID. Their dataset sources,
+revisions, baselines, prompts, and scorers remain owned by JudgeArena; the runtime
+config only supplies experiment settings such as the judge model. The
+`judgearena` entry in `task-groups.yaml` registers the packaged task IDs with the
+JudgeArena suite.
+
+```yaml
+# judgearena-runtime.yaml
+judge:
+  model: VLLM/google/gemma-4-12b-it
+  engine_kwargs:
+    tensor_parallel_size: 4
+model:
+  engine_kwargs:
+    tensor_parallel_size: 4
+```
+
+```bash
+export JUDGEARENA_CONTAINER_IMAGE=judgearena-lumi.sif
+export JUDGEARENA_DATA=/path/to/shared/judge-arena-data
+
+oellm-eval schedule \
+  --models /path/to/model \
+  --tasks arena-hard-v2.0-official \
+  --n_shot 0 \
+  --judgearena_kwargs '{"config_path":"judgearena-runtime.yaml"}' \
+  --limit 10
+```
+
 ## ⚠️ Dataset Pre-Download Warning
 
-**Datasets are only automatically pre-downloaded for tasks defined in [`task-groups.yaml`](oellm/resources/task-groups.yaml).**
+The current lm-eval and LightEval integration pre-downloads datasets from the
+metadata in [`task-groups.yaml`](oellm/resources/task-groups.yaml). JudgeArena
+instead delegates prefetching to its installed task definitions, which also own
+the pinned source revisions and normalization logic.
 
 If you use custom tasks via `--tasks` that are not in the task groups registry, the CLI will attempt to look them up but **cannot guarantee the datasets will be cached**. This may cause failures on compute nodes that don't have network access.
 
