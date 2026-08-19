@@ -211,14 +211,14 @@ model:
 ```
 
 ```bash
-export JUDGEARENA_CONTAINER_IMAGE=judgearena-lumi.sif
+export EVAL_CONTAINER_IMAGE=judgearena-lumi.sif
 export JUDGEARENA_DATA=/path/to/shared/judge-arena-data
 export HF_HOME=/path/to/shared/huggingface-cache
 
 mkdir -p "$JUDGEARENA_DATA" "$HF_HOME"
 singularity exec \
   --bind "$HF_HOME:$HF_HOME,$JUDGEARENA_DATA:$JUDGEARENA_DATA" \
-  "$EVAL_BASE_DIR/$JUDGEARENA_CONTAINER_IMAGE" \
+  "$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE" \
   judgearena tasks download arena-hard-v2.0-official
 
 oellm-eval schedule \

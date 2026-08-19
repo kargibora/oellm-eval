@@ -28,9 +28,8 @@ export HF_DATASETS_CACHE="$HF_HOME/datasets"
 export HF_HUB_OFFLINE={hf_hub_offline}
 mkdir -p "$JUDGEARENA_DATA"
 
-# Paths to the suite containers (container mode)
+# Path to the shared Singularity image that contains all runtime deps (container mode)
 export EVAL_SIF_PATH="$EVAL_BASE_DIR/$EVAL_CONTAINER_IMAGE"
-export JUDGEARENA_SIF_PATH="$EVAL_BASE_DIR/$JUDGEARENA_CONTAINER_IMAGE"
 
 export MIOPEN_USER_DB_PATH="/tmp/$USER-miopen-${{SLURM_JOB_ID:-$$}}"
 export MIOPEN_CUSTOM_CACHE_DIR="$MIOPEN_USER_DB_PATH"
@@ -242,7 +241,7 @@ do
                     $SINGULARITY_ENV_ARGS \
                     $SINGULARITY_HOME_ARG \
                     --bind "$JUDGEARENA_BIND_PATHS" \
-                    "$JUDGEARENA_SIF_PATH" \
+                    "$EVAL_SIF_PATH" \
                     env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
                         JUDGEARENA_DATA="$JUDGEARENA_DATA" \
                         HF_HOME="$HF_HOME" \

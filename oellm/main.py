@@ -200,6 +200,15 @@ def schedule_evals(
 
     use_venv = venv_path is not None
 
+    if not skip_checks:
+        _ensure_runtime_environment(
+            use_venv=use_venv,
+            container_image=os.environ.get("EVAL_CONTAINER_IMAGE"),
+            venv_path=venv_path,
+        )
+    else:
+        logging.info("Skipping runtime environment check (--skip-checks enabled)")
+
     if isinstance(models, str) and models is not None:
         models = [m.strip() for m in models.split(",") if m.strip()]  # type: ignore
 
@@ -331,32 +340,6 @@ def schedule_evals(
 
     eval_base_dir = Path(os.environ.get("EVAL_BASE_DIR", os.environ["EVAL_OUTPUT_DIR"]))
     os.environ.setdefault("JUDGEARENA_DATA", str(eval_base_dir / "judgearena-data"))
-
-    if not skip_checks:
-        if use_venv:
-            _ensure_runtime_environment(
-                use_venv=True,
-                container_image=None,
-                venv_path=venv_path,
-            )
-        else:
-            image_vars = {
-                "JUDGEARENA_CONTAINER_IMAGE"
-                if suite == "judgearena"
-                else "EVAL_CONTAINER_IMAGE"
-                for suite in df["eval_suite"]
-            }
-            for image_var in sorted(image_vars):
-                image = os.environ.get(image_var)
-                if not image:
-                    raise ValueError(f"Set {image_var} to run the selected tasks.")
-                _ensure_runtime_environment(
-                    use_venv=False,
-                    container_image=image,
-                    venv_path=None,
-                )
-    else:
-        logging.info("Skipping runtime environment check (--skip-checks enabled)")
 
     # Ensure that all datasets required by the tasks are cached locally to avoid
     # network access on compute nodes.

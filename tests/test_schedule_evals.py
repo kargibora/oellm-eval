@@ -127,7 +127,7 @@ def test_schedule_evals_runs_packaged_judgearena_task(tmp_path):
                 "EVAL_OUTPUT_DIR": str(tmp_path),
                 "EVAL_BASE_DIR": str(tmp_path),
                 "HF_HOME": str(tmp_path / "hf-cache"),
-                "JUDGEARENA_CONTAINER_IMAGE": "judgearena-lumi.sif",
+                "EVAL_CONTAINER_IMAGE": "judgearena-lumi.sif",
             },
         ),
     ):
@@ -148,7 +148,7 @@ def test_schedule_evals_runs_packaged_judgearena_task(tmp_path):
     assert jobs.loc[0, "eval_suite"] == "judgearena"
     assert jobs.loc[0, "n_shot"] == 0
     assert "judgearena-lumi.sif" in script
-    assert '"$JUDGEARENA_SIF_PATH"' in script
+    assert '"$EVAL_SIF_PATH"' in script
     assert f"--config_path {config_path}" in script
     assert "--judge.temperature 0" in script
     assert "--judge.engine_kwargs '{\"tensor_parallel_size\": 4}'" in script
