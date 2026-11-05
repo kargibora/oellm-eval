@@ -64,7 +64,13 @@ def _fake_venv(tmp_path: Path, harness: str, command: str = "python") -> Path:
     return venv
 
 
-def _render(tmp_path: Path, venv: Path, *, task: str = "hellaswag") -> Path:
+def _render(
+    tmp_path: Path,
+    venv: Path | None,
+    *,
+    task: str = "hellaswag",
+    backend: str | None = None,
+) -> Path:
     with (
         patch("oellm.main._load_cluster_env"),
         patch("oellm.main._num_jobs_in_queue", return_value=0),
@@ -75,8 +81,9 @@ def _render(tmp_path: Path, venv: Path, *, task: str = "hellaswag") -> Path:
             tasks=task,
             n_shot=0,
             skip_checks=True,
-            venv_path=str(venv),
+            venv_path=str(venv) if venv else None,
             dry_run=True,
+            **({"lm_eval_backend": backend} if backend is not None else {}),
         )
     scripts = list(tmp_path.glob("**/submit_evals.sbatch"))
     assert len(scripts) == 1
@@ -123,6 +130,87 @@ def test_successful_evaluation_passes(tmp_path):
     assert result.returncode == 0
     assert "Evaluation finished" in result.stdout
     assert "[error]" not in result.stdout
+
+
+@pytest.mark.parametrize(
+    "backend, expected_python, expected_model",
+    [
+        (None, "python", "hf"),
+        ("hf", "python", "hf"),
+        ("vllm", "/opt/vllm/bin/python", "vllm"),
+    ],
+)
+def test_container_uses_the_selected_lm_eval_runtime(
+    tmp_path, monkeypatch, backend, expected_python, expected_model
+):
+    """Changing the backend must also select the Python containing that backend."""
+    args_file = tmp_path / "args"
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    singularity = bin_dir / "singularity"
+    singularity.write_text(
+        HARNESS_OK.replace(
+            'for arg in "$@";', 'printf "%s\\n" "$@" > "$RUNTIME_ARGS"\nfor arg in "$@";'
+        )
+    )
+    singularity.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}:{os.environ['PATH']}")
+    monkeypatch.setenv("RUNTIME_ARGS", str(args_file))
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "hf"))
+    monkeypatch.setenv("EVAL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("EVAL_CONTAINER_IMAGE", "eval.sif")
+    monkeypatch.setenv("SINGULARITY_ARGS", "--nv --contain")
+
+    result = _run(_render(tmp_path, None, backend=backend))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    args = args_file.read_text().splitlines()
+    assert args[args.index("env") + 1].startswith("CUDA_VISIBLE_DEVICES=")
+    assert args[args.index("env") + 2 : args.index("-m")] == [expected_python]
+    assert args[args.index("--model") + 1] == expected_model
+
+
+@pytest.mark.parametrize("backend", ["hf", "vllm"])
+def test_explicit_venv_keeps_its_own_lm_eval_runtime(tmp_path, monkeypatch, backend):
+    args_file = tmp_path / "args"
+    monkeypatch.setenv("RUNTIME_ARGS", str(args_file))
+    harness = HARNESS_OK.replace(
+        'for arg in "$@";',
+        'printf "%s\\n" "$@" > "$RUNTIME_ARGS"\nfor arg in "$@";',
+    )
+    venv = _fake_venv(tmp_path, harness)
+
+    result = _run(_render(tmp_path, venv, backend=backend))
+
+    assert result.returncode == 0, result.stdout + result.stderr
+    args = args_file.read_text().splitlines()
+    assert args[:2] == ["-m", "lm_eval"]
+    assert args[args.index("--model") + 1] == backend
+
+
+def test_missing_shared_runtime_fails_instead_of_using_hf(tmp_path, monkeypatch):
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    singularity = bin_dir / "singularity"
+    singularity.write_text(
+        HARNESS_OK.replace(
+            'for arg in "$@";',
+            'for arg in "$@"; do\n'
+            '    if [ "$arg" = "/opt/vllm/bin/python" ]; then exit 127; fi\n'
+            'done\nfor arg in "$@";',
+        )
+    )
+    singularity.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{bin_dir}:{os.environ['PATH']}")
+    monkeypatch.setenv("HF_HOME", str(tmp_path / "hf"))
+    monkeypatch.setenv("EVAL_BASE_DIR", str(tmp_path))
+    monkeypatch.setenv("EVAL_CONTAINER_IMAGE", "old.sif")
+
+    result = _run(_render(tmp_path, None, backend="vllm"))
+
+    assert result.returncode == 1
+    assert "exited with status 127" in result.stdout
+    assert "Evaluation finished" not in result.stdout
 
 
 def test_failure_count_survives_the_read_loop(tmp_path):

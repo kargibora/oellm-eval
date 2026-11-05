@@ -189,13 +189,17 @@ do
             source "$VENV_PATH/bin/activate"
             python "$@"
         else
+            local python_bin=python
+            if [ "{lm_eval_backend}" = "vllm" ]; then
+                python_bin=/opt/vllm/bin/python
+            fi
             singularity exec $SINGULARITY_ARGS \
                 $SINGULARITY_ENV_ARGS \
                 $SINGULARITY_HOME_ARG \
                 --bind "$BIND_PATHS" \
                 $EVAL_SIF_PATH \
                 env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
-                python "$@"
+                "$python_bin" "$@"
         fi
     }}
 
@@ -231,7 +235,7 @@ do
             else
                 unset OELLM_DECONTAMINATED_SAMPLES SINGULARITYENV_OELLM_DECONTAMINATED_SAMPLES
             fi
-            run_python -m lm_eval --model hf \
+            run_python -m lm_eval --model {lm_eval_backend} \
                 --model_args pretrained="$model_path",trust_remote_code=True \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \

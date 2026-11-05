@@ -296,3 +296,8 @@ def test_schedule_rejects_task_override(schedule_env):
             venv_path=sys.prefix,
             dry_run=True,
         )
+
+
+def test_schedule_rejects_unknown_lm_eval_backend():
+    with pytest.raises(ValueError, match="lm_eval_backend"):
+        schedule_evals(lm_eval_backend="sglang")

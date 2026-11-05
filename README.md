@@ -222,6 +222,28 @@ oellm-eval schedule \
 `oellm-eval collect` reads `run-metadata.v1.json` and adds its numeric metrics to
 the result CSV. It leaves JudgeArena's reports and annotations unchanged.
 
+## lm-eval-harness Backend
+
+lm-eval-harness uses the Hugging Face backend (`hf`) by default. Select vLLM
+with `--lm_eval_backend vllm`:
+
+```bash
+oellm-eval schedule \
+  --models "model-name" --tasks gsm8k --n_shot 0 \
+  --lm_eval_backend vllm
+```
+
+Rebuilt Leonardo, LUMI and SLURM CI containers provide a shared `/opt/vllm`
+Python environment for JudgeArena and lm-eval's vLLM backend. It keeps the
+verified GPU dependency pins and adds lm-eval 0.4.13 under frozen constraints.
+`/opt/judgearena` remains available as a compatibility symlink. HF evaluations
+continue to use their original container environment.
+
+Older images must be rebuilt before selecting vLLM. Other container recipes
+do not yet provide `/opt/vllm`. With `--venv_path`, both backends use that venv
+instead; it must contain lm-eval and the selected backend. The backend option
+only affects lm-eval-harness tasks.
+
 ## Lighteval Batch Size
 
 For lighteval runs, generated jobs default to `batch_size=1` for local runs and

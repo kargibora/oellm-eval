@@ -31,22 +31,32 @@ From: rocm/pytorch:rocm7.2.1_ubuntu24.04_py3.12_pytorch_release_2.9.1
         accelerate \
         nltk
 
-    # Keep the ROCm/PyTorch base for lm-eval; isolate vLLM in JudgeArena.
-    uv venv --python 3.12 /opt/judgearena
-    uv pip install --python /opt/judgearena/bin/python \
+    # Shared vLLM runtime; keep the base ROCm/PyTorch environment for HF.
+    uv venv --python 3.12 /opt/vllm
+    uv pip install --python /opt/vllm/bin/python \
         --extra-index-url https://wheels.vllm.ai/rocm/0.19.1/rocm721/ \
         "torch==2.10.0+git8514f05" \
         "vllm==0.19.1+rocm721" \
         "transformers==5.5.4" \
         "huggingface-hub>=1.5,<2" \
+        "datasets>=4" \
         "judgearena @ git+https://github.com/OpenEuroLLM/JudgeArena.git@{{ JUDGEARENA_GIT_REF }}"
-    ln -s /opt/judgearena/bin/judgearena /usr/local/bin/judgearena
+    # Adding harness must not change the verified JudgeArena dependencies.
+    uv pip freeze --python /opt/vllm/bin/python > /opt/vllm/constraints.txt
+    uv pip install --python /opt/vllm/bin/python \
+        --extra-index-url https://wheels.vllm.ai/rocm/0.19.1/rocm721/ \
+        --constraint /opt/vllm/constraints.txt \
+        "lm-eval[api,tasks]==0.4.13"
+    uv pip check --python /opt/vllm/bin/python
+    ln -s /opt/vllm /opt/judgearena
+    ln -s /opt/vllm/bin/judgearena /usr/local/bin/judgearena
 
     # Patch two lm-eval bugs that break dclm-core-22 at n_shot>0 (both fail the
     # whole batched lm_eval call): agieval_lsat_ar ("Answer is not a string! : [4]")
     # and squadv2 ("doc_to_text() takes 2 positional arguments but 3 were given").
     # Exact-string replacements; the build fails if a target is not found.
-    /opt/venv/bin/python - <<'PY'
+    for eval_python in /opt/venv/bin/python /opt/vllm/bin/python; do
+    "$eval_python" - <<'PY'
 import os, lm_eval
 root = os.path.dirname(lm_eval.__file__)
 patches = {
@@ -74,7 +84,8 @@ PY
 
     # Fail the build if any lm-eval task module that dclm-core-22 needs cannot
     # import (see the transformers pin above).
-    /opt/venv/bin/python -c "import transformers.data.metrics.squad_metrics, lm_eval.tasks.coqa.utils"
+    "$eval_python" -c "import transformers.data.metrics.squad_metrics, lm_eval.tasks.coqa.utils"
+    done
 
     # lighteval as isolated tool (avoids dependency conflicts).
     #
