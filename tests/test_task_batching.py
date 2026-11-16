@@ -57,6 +57,7 @@ TEMPLATE_FIELDS = {
     "tasks_per_job": 8,
     "judgearena_args": "",
     "judgearena_data": "/tmp/judgearena-data",
+    "lm_eval_backend": "hf",
 }
 
 requires_awk = pytest.mark.skipif(shutil.which("awk") is None, reason="awk not available")

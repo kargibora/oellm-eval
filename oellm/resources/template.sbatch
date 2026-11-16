@@ -176,13 +176,17 @@ do
             source "$VENV_PATH/bin/activate"
             python "$@"
         else
+            CONTAINER_PYTHON=python
+            if [ "{lm_eval_backend}" = "vllm" ]; then
+                CONTAINER_PYTHON=/opt/lm-eval-vllm/bin/python
+            fi
             singularity exec $SINGULARITY_ARGS \
                 $SINGULARITY_ENV_ARGS \
                 $SINGULARITY_HOME_ARG \
                 --bind $BIND_PATHS \
                 $EVAL_SIF_PATH \
                 env CUDA_VISIBLE_DEVICES=$GPU_DEVICES \
-                python "$@"
+                "$CONTAINER_PYTHON" "$@"
         fi
     }}
 
@@ -201,7 +205,7 @@ do
             RUN_ID=$(openssl rand -hex 5)
             EVAL_OUT_DIR="{evals_dir}"
             EVAL_OUT_PAT="$RUN_ID*.json"
-            run_python -m lm_eval --model hf \
+            run_python -m lm_eval --model {lm_eval_backend} \
                 --model_args pretrained="$model_path",trust_remote_code=True \
                 --tasks "$task_path" \
                 --num_fewshot "$n_shot" \

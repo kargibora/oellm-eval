@@ -40,6 +40,10 @@ This will automatically:
 
 In case you do not want to rely on the containers provided on a given cluster or try out specific package versions, you can use a custom environment by passing `--venv_path`, see [docs/VENV.md](docs/VENV.md).
 
+## HF versus vLLM
+
+Use `--lm_eval_backend vllm` to select vLLM. The default is `hf`.
+
 ## Task Groups
 
 Task groups are pre-defined evaluation suites in [`task-groups.yaml`](oellm/resources/task-groups.yaml). Each group specifies tasks, their n-shot settings, and HuggingFace dataset mappings.

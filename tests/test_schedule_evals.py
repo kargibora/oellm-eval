@@ -240,3 +240,26 @@ def test_schedule_rejects_task_override(schedule_env):
             venv_path=sys.prefix,
             dry_run=True,
         )
+
+
+@pytest.mark.parametrize("backend", ["hf", "vllm"])
+def test_lm_eval_backend(schedule_env, tmp_path, backend):
+    with patch("oellm.main._num_jobs_in_queue", return_value=0):
+        schedule_evals(
+            models="local-model",
+            tasks="arc_easy",
+            n_shot=0,
+            skip_checks=True,
+            dry_run=True,
+            lm_eval_backend=backend,
+        )
+    script = next(tmp_path.glob("**/submit_evals.sbatch")).read_text()
+    assert f"-m lm_eval --model {backend} " in script
+    assert "CONTAINER_PYTHON=python" in script
+    assert "CONTAINER_PYTHON=/opt/lm-eval-vllm/bin/python" in script
+    assert "/opt/judgearena/bin/python" not in script
+
+
+def test_rejects_unknown_lm_eval_backend():
+    with pytest.raises(ValueError, match="lm_eval_backend"):
+        schedule_evals(lm_eval_backend="unknown")
